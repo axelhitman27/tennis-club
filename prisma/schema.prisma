@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  COACH
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String
+  role         Role     @default(PLAYER)
+  createdAt    DateTime @default(now())
+  // Sessions issued before this moment are rejected (set on password reset).
+  passwordChangedAt DateTime?
+
+  resets      PasswordReset[]
+  memberships Membership[]
+  charges     Charge[]     @relation("ChargeOwner")
+  collected   Charge[]     @relation("ChargeCollector")
+  attendances Attendance[]
+  slots       PlayerSlot[]
+}
+
+// Singleton row (id = "club") with the club rules, editable by the admin.
+model Settings {
+  id                 String @id
+  monthlyCents       Int    @default(4000) // default price of one month of membership
+  guestSessionCents  Int    @default(600)  // one training without a membership
+  weeklyTrainings    Int    @default(2)    // how many weekly slots a player may pick
+}
+
+// Flat monthly subscription: trainings inside [startsAt, endsAt) cost nothing extra.
+// The price (e.g. 40 €/month, or a 3-month deal at 35 €/month) lives on the Charge.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  charges Charge[]
+
+  @@index([userId, endsAt])
+}
+
+// A recurring weekly training, e.g. "Monday 18:00". Sessions are generated from it.
+model WeeklySlot {
+  id        String  @id @default(cuid())
+  title     String
+  weekday   Int // 0 = Sunday ... 6 = Saturday (JS getDay)
+  startTime String // "HH:MM", club local time (Europe/Athens)
+  location  String?
+  active    Boolean @default(true)
+
+  sessions TrainingSession[]
+  players  PlayerSlot[]
+}
+
+// The days a player declared they will come.
+model PlayerSlot {
+  userId String
+  slotId String
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot WeeklySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  @@id([userId, slotId])
+}
+
+model TrainingSession {
+  id       String   @id @default(cuid())
+  title    String
+  startsAt DateTime
+  location String?
+  slotId   String? // null for one-off sessions
+
+  slot        WeeklySlot?  @relation(fields: [slotId], references: [id])
+  attendances Attendance[]
+
+  @@unique([slotId, startsAt])
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String
+  checkedInAt DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+  charge  Charge?
+
+  @@unique([sessionId, userId])
+}
+
+// Money owed by a player. Paid in cash; the trainer flips paidAt on/off.
+model Charge {
+  id           String    @id @default(cuid())
+  userId       String
+  amountCents  Int
+  description  String
+  attendanceId String?   @unique
+  membershipId String?
+  paidAt       DateTime?
+  paidById     String?
+  createdAt    DateTime  @default(now())
+
+  user       User        @relation("ChargeOwner", fields: [userId], references: [id])
+  paidBy     User?       @relation("ChargeCollector", fields: [paidById], references: [id])
+  attendance Attendance? @relation(fields: [attendanceId], references: [id])
+  membership Membership? @relation(fields: [membershipId], references: [id])
+
+  @@index([userId, paidAt])
+}
+
+// One-time link sent by email. Only the SHA-256 hash of the token is stored.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
