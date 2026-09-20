@@ -1,15 +1,35 @@
-name: Deploy to Hostinger VPS
+name: Check and deploy to Hostinger VPS
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
-concurrency: deploy
-
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy values: the build only needs them to exist.
+          AUTH_SECRET: ci-build-secret
+          QR_SECRET: ci-build-secret
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency: deploy
     steps:
       - name: Pull and rebuild on the VPS
         env:
