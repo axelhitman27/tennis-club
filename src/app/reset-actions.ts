@@ -54,7 +54,12 @@ export async function resetPassword(token: string, _: string | null, form: FormD
   await db.$transaction([
     db.user.update({
       where: { id: reset.userId },
-      data: { passwordHash: await bcrypt.hash(parsed.data.password, 12), passwordChangedAt: now },
+      data: {
+        passwordHash: await bcrypt.hash(parsed.data.password, 12),
+        passwordChangedAt: now,
+        failedLogins: 0,
+        lockedUntil: null,
+      },
     }),
     // Burn this link and any other outstanding ones.
     db.passwordReset.updateMany({ where: { userId: reset.userId, usedAt: null }, data: { usedAt: now } }),

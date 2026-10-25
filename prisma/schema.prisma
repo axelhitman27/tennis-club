@@ -23,6 +23,9 @@ model User {
   createdAt    DateTime @default(now())
   // Sessions issued before this moment are rejected (set on password reset).
   passwordChangedAt DateTime?
+  // Brute-force protection: failed logins since the last success, and a lock expiry.
+  failedLogins      Int       @default(0)
+  lockedUntil       DateTime?
 
   resets      PasswordReset[]
   memberships Membership[]

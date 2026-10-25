@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: "Tennis Club",
   description: "Συνδρομές και παρουσίες για τον σύλλογο τένις",
   manifest: "/manifest.webmanifest",
+  // Every page is behind login and shows personal data (names, payments, attendance),
+  // so it has nothing to offer a search engine and shouldn't be indexed.
+  robots: { index: false, follow: false },
 };
 export const viewport: Viewport = { themeColor: "#15803d" };
 
