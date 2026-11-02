@@ -140,11 +140,20 @@ export default async function ProfilePage() {
                   <CalendarDays size={14} />
                   {t.upcoming}
                 </h3>
-                <ul className="space-y-1 text-sm text-[var(--ink)]">
+                <ul className="space-y-1.5 text-sm text-[var(--ink)]">
                   {upcoming.map((u) => (
-                    <li key={u.id} className="flex justify-between">
-                      <span>{u.title}{u.location ? ` · ${u.location}` : ""}</span>
-                      <span className="text-[var(--muted)]">{fmtDateTime.format(u.startsAt)}</span>
+                    <li key={u.id}>
+                      <div className="flex justify-between gap-2">
+                        <span className={u.cancelledAt ? "text-[var(--muted)] line-through" : ""}>
+                          {u.title}{u.location ? ` · ${u.location}` : ""}
+                        </span>
+                        <span className="text-[var(--muted)]">{fmtDateTime.format(u.startsAt)}</span>
+                      </div>
+                      {u.cancelledAt && (
+                        <p className="text-xs font-medium text-[var(--danger)]">
+                          {t.sessionCancelled}{u.cancelReason ? `: ${u.cancelReason}` : ""}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

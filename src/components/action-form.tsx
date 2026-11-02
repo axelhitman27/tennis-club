@@ -12,11 +12,13 @@ export type ActionResult = { ok: boolean; message?: string };
 export function ActionForm({
   action,
   success,
+  onDone,
   className,
   children,
 }: {
   action: (prev: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   success: string;
+  onDone?: () => void;
   className?: string;
   children: ReactNode;
 }) {
@@ -29,7 +31,8 @@ export function ActionForm({
     seen.current = state;
     if (!state) return;
     toast(state.ok ? state.message ?? success : state.message ?? "Κάτι πήγε στραβά.", state.ok ? "success" : "danger");
-  }, [state, pending, success, toast]);
+    if (state.ok) onDone?.();
+  }, [state, pending, success, toast, onDone]);
 
   return (
     <form action={formAction} className={className}>

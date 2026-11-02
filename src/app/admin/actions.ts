@@ -7,6 +7,8 @@ import { getSettings } from "@/lib/settings";
 import { parseCents } from "@/lib/money";
 import { requireUser } from "@/lib/session";
 import { ensureUpcomingSessions } from "@/lib/schedule";
+import { sendMail } from "@/lib/mail";
+import { CLUB_NAME } from "@/lib/branding";
 
 export type ActionResult = { ok: boolean; message?: string };
 
@@ -118,4 +120,59 @@ export async function createMembership(_: ActionResult | null, form: FormData): 
   });
   revalidatePath(`/coach/players/${p.userId}`);
   return { ok: true, message: "Η συνδρομή ενεργοποιήθηκε." };
+}
+
+const fmtSessionDateTime = new Intl.DateTimeFormat("el-GR", { dateStyle: "full", timeStyle: "short" });
+
+// Players expected at a session: those who picked its weekly slot, or — for a
+// one-off session, which has no sign-up list — every active player.
+async function expectedPlayers(session: { slotId: string | null }) {
+  if (session.slotId) {
+    const rows = await db.playerSlot.findMany({
+      where: { slotId: session.slotId },
+      include: { user: true },
+    });
+    return rows.map((r) => r.user);
+  }
+  return db.user.findMany({ where: { role: "PLAYER" } });
+}
+
+export async function cancelSession(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireUser(["COACH", "ADMIN"]);
+  const sessionId = String(form.get("sessionId"));
+  const reason = String(form.get("reason") ?? "").trim() || null;
+  const session = await db.trainingSession.update({
+    where: { id: sessionId },
+    data: { cancelledAt: new Date(), cancelReason: reason },
+  });
+
+  const players = await expectedPlayers(session);
+  const when = fmtSessionDateTime.format(session.startsAt);
+  await Promise.all(
+    players.map((p) =>
+      sendMail(
+        p.email,
+        `Ακύρωση προπόνησης — ${CLUB_NAME}`,
+        `Γεια σου ${p.name},\n\nΗ προπόνηση «${session.title}» στις ${when} ακυρώθηκε${reason ? `: ${reason}` : "."}\n\nΘα το δεις και μέσα στην εφαρμογή.`,
+      ).catch((e) => console.error("cancel mail failed", p.email, e)),
+    ),
+  );
+
+  revalidatePath("/admin");
+  revalidatePath("/coach/scan");
+  revalidatePath("/profile");
+  return { ok: true, message: `Η προπόνηση ακυρώθηκε και ειδοποιήθηκαν ${players.length} παίκτες.` };
+}
+
+export async function uncancelSession(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireUser(["COACH", "ADMIN"]);
+  const sessionId = String(form.get("sessionId"));
+  await db.trainingSession.update({
+    where: { id: sessionId },
+    data: { cancelledAt: null, cancelReason: null },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/coach/scan");
+  revalidatePath("/profile");
+  return { ok: true, message: "Η ακύρωση αναιρέθηκε." };
 }

@@ -36,6 +36,7 @@ export const t = {
   myDays: "Οι μέρες μου",
   myDaysHelp: "Επίλεξε τις προπονήσεις που θα παρακολουθείς κάθε εβδομάδα (έως",
   upcoming: "Επόμενες προπονήσεις",
+  sessionCancelled: "Ακυρώθηκε",
   expectedList: "Αναμένονται",
   offSchedule: "Εκτός δηλωμένου προγράμματος",
   addPlayer: "Προσθήκη παίκτη",

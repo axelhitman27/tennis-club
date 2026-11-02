@@ -92,6 +92,11 @@ model TrainingSession {
   location String?
   slotId   String? // null for one-off sessions
 
+  // Set when the coach/admin cancels this occurrence. Kept (not deleted) so the
+  // cancellation stays visible to players who already saw it as upcoming.
+  cancelledAt  DateTime?
+  cancelReason String?
+
   slot        WeeklySlot?  @relation(fields: [slotId], references: [id])
   attendances Attendance[]
 

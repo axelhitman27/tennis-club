@@ -14,6 +14,7 @@ export default async function ScanPage() {
   const now = new Date();
   const sessions = await db.trainingSession.findMany({
     where: {
+      cancelledAt: null,
       startsAt: {
         gte: new Date(now.getTime() - 6 * 3600e3),
         lte: new Date(now.getTime() + 24 * 3600e3),

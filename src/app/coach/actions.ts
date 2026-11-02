@@ -9,6 +9,9 @@ import { requireUser } from "@/lib/session";
 import { sendMail } from "@/lib/mail";
 import { CLUB_NAME } from "@/lib/branding";
 import { createResetToken, resetLink } from "@/lib/reset-token";
+import { parseCents } from "@/lib/money";
+
+export type ActionResult = { ok: boolean; message?: string };
 
 // Coach/admin confirms (or undoes) that a player handed over the cash.
 export async function setChargePaid(chargeId: string, paid: boolean) {
@@ -21,8 +24,39 @@ export async function setChargePaid(chargeId: string, paid: boolean) {
   revalidatePath("/profile");
 }
 
-export async function togglePaid(form: FormData) {
-  await setChargePaid(String(form.get("chargeId")), form.get("paid") === "1");
+export async function togglePaid(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const paid = form.get("paid") === "1";
+  await setChargePaid(String(form.get("chargeId")), paid);
+  return { ok: true, message: paid ? "Σημειώθηκε ως πληρωμένη." : "Σημειώθηκε ως απλήρωτη." };
+}
+
+// Corrects a charge the coach entered wrong (amount or description) — e.g. the
+// wrong number of months, or a typo. Never used to resolve payment disputes
+// silently: the amended amount is visible to the player on their own charges list.
+export async function updateCharge(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireUser(["COACH", "ADMIN"]);
+  const chargeId = String(form.get("chargeId"));
+  const amountCents = parseCents(form.get("amount"));
+  const description = String(form.get("description") ?? "").trim();
+  if (amountCents == null || amountCents <= 0 || description.length < 2) {
+    return { ok: false, message: "Έλεγξε το ποσό και την περιγραφή." };
+  }
+  const charge = await db.charge.update({ where: { id: chargeId }, data: { amountCents, description } });
+  revalidatePath(`/coach/players/${charge.userId}`);
+  revalidatePath("/coach/players", "layout");
+  revalidatePath("/profile");
+  return { ok: true, message: "Η χρέωση ενημερώθηκε." };
+}
+
+// Removes a charge entered by mistake entirely (e.g. charged the wrong player).
+export async function deleteCharge(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireUser(["COACH", "ADMIN"]);
+  const chargeId = String(form.get("chargeId"));
+  const charge = await db.charge.delete({ where: { id: chargeId } });
+  revalidatePath(`/coach/players/${charge.userId}`);
+  revalidatePath("/coach/players", "layout");
+  revalidatePath("/profile");
+  return { ok: true, message: "Η χρέωση διαγράφηκε." };
 }
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // a week — players don't always check email the same day

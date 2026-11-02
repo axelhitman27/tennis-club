@@ -9,6 +9,7 @@ import { ensureUpcomingSessions, WEEKDAYS, byWeekThenTime } from "@/lib/schedule
 import { createSession, createSlot, deleteSlot, updateSettings, setRole } from "./actions";
 import { Card, CardHeader, PageHeader, StatTile, Field, Select, Button, Badge, Avatar, EmptyState } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
+import { CancelSession } from "./cancel-session";
 
 const fmtDateTime = new Intl.DateTimeFormat("el-GR", { dateStyle: "short", timeStyle: "short" });
 const roleLabel = { PLAYER: "Παίκτης", COACH: "Προπονητής", ADMIN: "Διαχειριστής" } as const;
@@ -16,11 +17,12 @@ const roleLabel = { PLAYER: "Παίκτης", COACH: "Προπονητής", ADM
 export default async function AdminPage() {
   const admin = await requireUser(["ADMIN"]);
   await ensureUpcomingSessions();
-  const [settings, sessions, users, unpaid, slots, sessionCount] = await Promise.all([
+  const [settings, upcomingSessions, users, unpaid, slots, sessionCount] = await Promise.all([
     getSettings(),
     db.trainingSession.findMany({
-      orderBy: { startsAt: "desc" },
-      take: 15,
+      where: { startsAt: { gte: new Date() } },
+      orderBy: { startsAt: "asc" },
+      take: 20,
       include: { _count: { select: { attendances: true } } },
     }),
     db.user.findMany({ orderBy: { name: "asc" } }),
@@ -119,14 +121,39 @@ export default async function AdminPage() {
             </Button>
           </div>
         </ActionForm>
-        <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)] text-sm">
-          {sessions.map((s) => (
-            <li key={s.id} className="flex items-center justify-between p-4">
-              <span className="text-[var(--ink)]">{s.title}</span>
-              <span className="text-[var(--muted)]">{fmtDateTime.format(s.startsAt)} · {s._count.attendances} παρουσίες</span>
-            </li>
-          ))}
-        </ul>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Προσεχείς προπονήσεις"
+          subtitle="Ακύρωση ενημερώνει τους παίκτες με email και μέσα στην εφαρμογή."
+        />
+        <div className="border-t border-[var(--border)]">
+          {upcomingSessions.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="Καμία προσεχής προπόνηση" />
+            </div>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {upcomingSessions.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  <div className="min-w-0">
+                    <p className={s.cancelledAt ? "text-[var(--muted)] line-through" : "text-[var(--ink)]"}>
+                      {s.title}{s.location ? ` · ${s.location}` : ""}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {fmtDateTime.format(s.startsAt)} · {s._count.attendances} παρουσίες
+                    </p>
+                    {s.cancelledAt && s.cancelReason && (
+                      <p className="text-xs text-[var(--danger)]">{s.cancelReason}</p>
+                    )}
+                  </div>
+                  <CancelSession sessionId={s.id} cancelledAt={s.cancelledAt} cancelReason={s.cancelReason} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Card>
 
       <Card>

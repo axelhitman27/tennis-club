@@ -10,9 +10,9 @@ import { getSettings } from "@/lib/settings";
 import { Card, CardHeader, Badge, Button, Field, Avatar, EmptyState } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
 import { StaffNav } from "../../../staff-nav";
-import { togglePaid } from "../../actions";
 import { createMembership } from "../../../admin/actions";
 import { ResendInvite } from "./resend-invite";
+import { ChargeRow } from "./charge-row";
 
 const fmtDate = new Intl.DateTimeFormat("el-GR", { dateStyle: "medium" });
 
@@ -86,22 +86,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           ) : (
             <ul className="divide-y divide-[var(--border)]">
               {player.charges.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <div>
-                    <p className="text-[var(--ink)]">{c.description}</p>
-                    <p className="text-xs text-[var(--muted)]">{fmtDate.format(c.createdAt)}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">{eur.format(c.amountCents / 100)}</span>
-                    <form action={togglePaid}>
-                      <input type="hidden" name="chargeId" value={c.id} />
-                      <input type="hidden" name="paid" value={c.paidAt ? "0" : "1"} />
-                      <Button variant={c.paidAt ? "secondary" : "primary"} size="sm">
-                        {c.paidAt ? `✓ ${t.paid}` : t.markPaid}
-                      </Button>
-                    </form>
-                  </div>
-                </li>
+                <ChargeRow
+                  key={c.id}
+                  chargeId={c.id}
+                  description={c.description}
+                  amountCents={c.amountCents}
+                  paid={!!c.paidAt}
+                  createdAt={c.createdAt}
+                />
               ))}
             </ul>
           )}
