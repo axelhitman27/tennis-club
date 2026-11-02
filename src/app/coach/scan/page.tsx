@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { ensureUpcomingSessions } from "@/lib/schedule";
+import { t } from "@/lib/el";
+import { PageHeader } from "@/components/ui";
 import { StaffNav } from "../../staff-nav";
 import { CheckinScanner } from "./scanner";
 
@@ -25,8 +27,10 @@ export default async function ScanPage() {
   });
 
   return (
-    <main className="mx-auto max-w-md p-4">
+    <main className="mx-auto max-w-md px-4 pb-16">
       <StaffNav role={staff.role} />
+      <PageHeader title={t.scan} />
+      <div className="mt-4">
       <CheckinScanner
         sessions={sessions.map((s) => {
           const arrived = new Set(s.attendances.map((a) => a.userId));
@@ -47,6 +51,7 @@ export default async function ScanPage() {
           };
         })}
       />
+      </div>
     </main>
   );
 }

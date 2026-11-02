@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronLeft, Mail, Phone, Receipt } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { t } from "@/lib/el";
 import { eur } from "@/lib/money";
-import { StaffNav } from "../../../staff-nav";
-import { togglePaid } from "../../actions";
 import { WEEKDAYS, byWeekThenTime } from "@/lib/schedule";
 import { getSettings } from "@/lib/settings";
+import { Card, CardHeader, Badge, Button, Field, Avatar, EmptyState } from "@/components/ui";
+import { StaffNav } from "../../../staff-nav";
+import { togglePaid } from "../../actions";
 import { createMembership } from "../../../admin/actions";
+import { ResendInvite } from "./resend-invite";
 
 const fmtDate = new Intl.DateTimeFormat("el-GR", { dateStyle: "medium" });
-const input = "rounded-lg border border-stone-300 px-3 py-2";
 
 export default async function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireUser(["COACH", "ADMIN"]);
@@ -31,77 +33,129 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   const settings = await getSettings();
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-4">
+    <main className="mx-auto max-w-2xl space-y-4 px-4 pb-16">
       <StaffNav role={staff.role} />
-      <Link href="/coach/players" className="text-sm text-green-700 underline">← {t.players}</Link>
-      <header>
-        <h1 className="text-xl font-bold">{player.name}</h1>
-        <p className="text-sm text-stone-600">{player.email}{player.phone ? ` · ${player.phone}` : ""}</p>
-        <p className={`mt-2 text-lg font-semibold ${owed > 0 ? "text-red-600" : "text-green-700"}`}>
+      <Link href="/coach/players" className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand)]">
+        <ChevronLeft size={16} />
+        {t.backToPlayers}
+      </Link>
+
+      <Card className="p-5">
+        <div className="flex items-start gap-3">
+          <Avatar name={player.name} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-bold text-[var(--ink)]">{player.name}</h1>
+              {!player.passwordSet && <Badge tone="warning">{t.invitePending}</Badge>}
+            </div>
+            <div className="mt-1 flex flex-col gap-0.5 text-sm text-[var(--muted)]">
+              <span className="flex items-center gap-1.5">
+                <Mail size={13} />
+                {player.email}
+              </span>
+              {player.phone && (
+                <span className="flex items-center gap-1.5">
+                  <Phone size={13} />
+                  {player.phone}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div
+          className={
+            "mt-3 inline-flex rounded-lg px-3 py-1.5 text-sm font-semibold " +
+            (owed > 0 ? "bg-[var(--danger-light)] text-[var(--danger)]" : "bg-[var(--success-light)] text-[var(--success)]")
+          }
+        >
           {owed > 0 ? `${t.balance}: ${eur.format(owed / 100)}` : t.allPaid}
-        </p>
-      </header>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="mb-2 font-semibold">{t.charges}</h2>
-        <ul className="divide-y">
-          {player.charges.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div>
-                <p>{c.description}</p>
-                <p className="text-xs text-stone-500">{fmtDate.format(c.createdAt)}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-medium">{eur.format(c.amountCents / 100)}</span>
-                <form action={togglePaid}>
-                  <input type="hidden" name="chargeId" value={c.id} />
-                  <input type="hidden" name="paid" value={c.paidAt ? "0" : "1"} />
-                  <button
-                    className={c.paidAt
-                      ? "rounded-lg border border-stone-300 px-3 py-1 text-stone-600"
-                      : "rounded-lg bg-green-700 px-3 py-1 font-semibold text-white"}
-                  >
-                    {c.paidAt ? `✓ ${t.paid}` : t.markPaid}
-                  </button>
-                </form>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="mb-2 font-semibold">{t.myDays}</h2>
-        <p className="text-sm">
-          {player.slots.length === 0
-            ? "—"
-            : player.slots.map((p) => p.slot).sort(byWeekThenTime).map((s) => `${WEEKDAYS[s.weekday]} ${s.startTime}`).join(" · ")}
-        </p>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="mb-2 font-semibold">{t.membership}</h2>
-        <ul className="mb-3 space-y-1 text-sm">
-          {player.memberships.map((m) => (
-            <li key={m.id} className={m.startsAt <= now && m.endsAt > now ? "font-medium text-green-800" : "text-stone-500"}>
-              {t.monthlyMembership}
-              {" · "}{fmtDate.format(m.startsAt)} – {fmtDate.format(m.endsAt)}
-            </li>
-          ))}
-        </ul>
-        {staff.role === "ADMIN" && (
-          <form action={createMembership} className="flex flex-wrap items-end gap-2 text-sm">
-            <input type="hidden" name="userId" value={player.id} />
-            <label>Μήνες
-              <input name="months" type="number" min="1" max="24" defaultValue="1" className={`${input} block w-20`} />
-            </label>
-            <label>€ / μήνα
-              <input name="monthlyPrice" placeholder={String(settings.monthlyCents / 100)} className={`${input} block w-28`} />
-            </label>
-            <button className="rounded-lg bg-green-700 px-4 py-2 font-semibold text-white">Ενεργοποίηση</button>
-          </form>
+        </div>
+        {!player.passwordSet && (
+          <div className="mt-3">
+            <ResendInvite userId={player.id} />
+          </div>
         )}
-      </section>
+      </Card>
+
+      <Card>
+        <CardHeader title={t.charges} />
+        <div className="p-5">
+          {player.charges.length === 0 ? (
+            <EmptyState icon={<Receipt size={24} />} title={t.noChargesYet} />
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {player.charges.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <div>
+                    <p className="text-[var(--ink)]">{c.description}</p>
+                    <p className="text-xs text-[var(--muted)]">{fmtDate.format(c.createdAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium">{eur.format(c.amountCents / 100)}</span>
+                    <form action={togglePaid}>
+                      <input type="hidden" name="chargeId" value={c.id} />
+                      <input type="hidden" name="paid" value={c.paidAt ? "0" : "1"} />
+                      <Button variant={c.paidAt ? "secondary" : "primary"} size="sm">
+                        {c.paidAt ? `✓ ${t.paid}` : t.markPaid}
+                      </Button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title={t.myDays} />
+        <div className="flex flex-wrap gap-2 p-5">
+          {player.slots.length === 0 ? (
+            <span className="text-sm text-[var(--muted)]">—</span>
+          ) : (
+            player.slots
+              .map((p) => p.slot)
+              .sort(byWeekThenTime)
+              .map((s) => (
+                <Badge key={s.id} tone="brand">
+                  {WEEKDAYS[s.weekday]} {s.startTime}
+                </Badge>
+              ))
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title={t.membership} />
+        <div className="space-y-4 p-5">
+          <ul className="space-y-1.5 text-sm">
+            {player.memberships.length === 0 && <li className="text-[var(--muted)]">—</li>}
+            {player.memberships.map((m) => {
+              const active = m.startsAt <= now && m.endsAt > now;
+              return (
+                <li key={m.id} className="flex items-center gap-2">
+                  {active && <Badge tone="success">{t.monthlyMembership}</Badge>}
+                  <span className={active ? "font-medium text-[var(--ink)]" : "text-[var(--muted)]"}>
+                    {fmtDate.format(m.startsAt)} – {fmtDate.format(m.endsAt)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {staff.role === "ADMIN" && (
+            <form action={createMembership} className="flex flex-wrap items-end gap-3">
+              <input type="hidden" name="userId" value={player.id} />
+              <div className="w-24">
+                <Field name="months" label="Μήνες" type="number" min={1} max={24} defaultValue="1" />
+              </div>
+              <div className="w-32">
+                <Field name="monthlyPrice" label="€ / μήνα" required={false} placeholder={String(settings.monthlyCents / 100)} />
+              </div>
+              <Button type="submit">Ενεργοποίηση</Button>
+            </form>
+          )}
+        </div>
+      </Card>
     </main>
   );
 }

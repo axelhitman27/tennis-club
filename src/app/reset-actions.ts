@@ -1,15 +1,15 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendMail } from "@/lib/mail";
+import { CLUB_NAME } from "@/lib/branding";
+import { createResetToken, resetLink, findValidReset } from "@/lib/reset-token";
 
-const TTL_MS = 60 * 60 * 1000; // link valid for 1 hour
+const FORGOT_TTL_MS = 60 * 60 * 1000; // 1 hour
 const COOLDOWN_MS = 60 * 1000; // at most one email per minute per account
-const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
 // Always redirects to the same "sent" page so the form never reveals which emails have accounts.
 export async function requestReset(_: string | null, form: FormData): Promise<string | null> {
@@ -21,16 +21,12 @@ export async function requestReset(_: string | null, form: FormData): Promise<st
       where: { userId: user.id, createdAt: { gt: new Date(Date.now() - COOLDOWN_MS) } },
     });
     if (!recent) {
-      const token = randomBytes(32).toString("hex");
-      await db.passwordReset.create({
-        data: { userId: user.id, tokenHash: hash(token), expiresAt: new Date(Date.now() + TTL_MS) },
-      });
-      const link = `${process.env.APP_URL ?? "http://localhost:3000"}/reset/${token}`;
+      const token = await createResetToken(user.id, FORGOT_TTL_MS);
       // Not awaited: keeps response time identical whether or not the account exists.
       void sendMail(
         user.email,
         "Επαναφορά κωδικού",
-        `Γεια σου ${user.name},\n\nΓια να ορίσεις νέο κωδικό πάτησε τον σύνδεσμο (ισχύει για 1 ώρα):\n${link}\n\nΑν δεν το ζήτησες εσύ, αγνόησε αυτό το μήνυμα.`,
+        `Γεια σου ${user.name},\n\nΓια να ορίσεις νέο κωδικό πάτησε τον σύνδεσμο (ισχύει για 1 ώρα):\n${resetLink(token)}\n\nΑν δεν το ζήτησες εσύ, αγνόησε αυτό το μήνυμα.\n\n${CLUB_NAME}`,
       ).catch((e) => console.error("reset mail failed", e));
     }
   }
@@ -45,10 +41,8 @@ export async function resetPassword(token: string, _: string | null, form: FormD
   const parsed = resetSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return "Οι κωδικοί πρέπει να ταιριάζουν (τουλάχιστον 8 χαρακτήρες).";
 
-  const reset = await db.passwordReset.findUnique({ where: { tokenHash: hash(token) } });
-  if (!reset || reset.usedAt || reset.expiresAt < new Date()) {
-    return "Ο σύνδεσμος δεν ισχύει πια. Ζήτησε νέο.";
-  }
+  const reset = await findValidReset(token);
+  if (!reset) return "Ο σύνδεσμος δεν ισχύει πια. Ζήτησε νέο.";
 
   const now = new Date();
   await db.$transaction([
@@ -57,6 +51,7 @@ export async function resetPassword(token: string, _: string | null, form: FormD
       data: {
         passwordHash: await bcrypt.hash(parsed.data.password, 12),
         passwordChangedAt: now,
+        passwordSet: true,
         failedLogins: 0,
         lockedUntil: null,
       },

@@ -3,8 +3,10 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Scanner } from "@yudiel/react-qr-scanner";
+import { CheckCircle2, Circle, AlertTriangle, XCircle, RotateCcw } from "lucide-react";
 import { t } from "@/lib/el";
 import { eur } from "@/lib/money";
+import { Select, Card, Button } from "@/components/ui";
 import { setChargePaid } from "../actions";
 
 type RosterEntry = { id: string; name: string; arrived: boolean; expected: boolean };
@@ -48,77 +50,93 @@ export function CheckinScanner({ sessions }: { sessions: Session[] }) {
   }
 
   const roster = sessions.find((s) => s.id === sessionId)?.roster ?? [];
-  const tone = !result ? "" : result.kind === "ok" ? "bg-green-700" : result.kind === "dup" ? "bg-amber-600" : "bg-red-700";
+  const tone = !result ? "" : result.kind === "ok" ? "bg-[var(--success)]" : result.kind === "dup" ? "bg-[var(--warning)]" : "bg-[var(--danger)]";
 
   return (
     <div className="space-y-4">
-      <label className="block text-sm font-medium">
-        {t.chooseSession}
-        <select
-          value={sessionId}
-          onChange={(e) => setSessionId(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
-        >
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>{s.label}</option>
-          ))}
-        </select>
-      </label>
-      <div className="relative overflow-hidden rounded-2xl">
+      <Select label={t.chooseSession} value={sessionId} onChange={(e) => setSessionId(e.target.value)}>
+        {sessions.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
+          </option>
+        ))}
+      </Select>
+
+      <Card className="relative overflow-hidden">
         <Scanner
           onScan={(codes) => codes[0] && onScan(codes[0].rawValue)}
           constraints={{ facingMode: "environment" }}
         />
         {result && (
           <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-white ${tone}/95`}>
-            {result.kind === "bad" && <p className="text-xl font-bold">{t.checkinBadQr}</p>}
+            {result.kind === "bad" && (
+              <>
+                <XCircle size={40} />
+                <p className="text-xl font-bold">{t.checkinBadQr}</p>
+              </>
+            )}
             {result.kind === "dup" && (
               <>
+                <AlertTriangle size={40} />
                 <p className="text-xl font-bold">{t.checkinDup}</p>
                 <p>{result.name}</p>
               </>
             )}
             {result.kind === "ok" && (
               <>
-                <p className="text-sm">{t.checkinOk}</p>
+                <CheckCircle2 size={40} />
+                <p className="text-sm opacity-90">{t.checkinOk}</p>
                 <p className="text-2xl font-bold">{result.name}</p>
                 {result.expected === false && (
-                  <p className="rounded bg-black/25 px-2 py-0.5 text-sm">⚠ {t.offSchedule}</p>
+                  <p className="flex items-center gap-1 rounded-full bg-black/25 px-3 py-1 text-sm">
+                    <AlertTriangle size={14} />
+                    {t.offSchedule}
+                  </p>
                 )}
                 <p className="text-lg">
                   {result.chargeId ? eur.format(result.amountCents / 100) : t.coveredByMembership}
                 </p>
                 {result.outstandingCents > result.amountCents && (
-                  <p className="text-sm">{t.balance}: {eur.format(result.outstandingCents / 100)}</p>
+                  <p className="text-sm opacity-90">{t.balance}: {eur.format(result.outstandingCents / 100)}</p>
                 )}
                 {result.chargeId && (
-                  <button
+                  <Button
+                    variant="secondary"
                     disabled={pending || paid}
                     onClick={() => start(async () => { await setChargePaid(result.chargeId!, true); setPaid(true); })}
-                    className="rounded-lg bg-white px-5 py-2 font-semibold text-green-800 disabled:opacity-70"
                   >
-                    {paid ? `✓ ${t.paid}` : t.markPaid}
-                  </button>
+                    {paid && <CheckCircle2 size={16} />}
+                    {paid ? t.paid : t.markPaid}
+                  </Button>
                 )}
               </>
             )}
-            <button onClick={dismiss} className="mt-2 rounded-lg border border-white/70 px-5 py-2">{t.next}</button>
+            <Button variant="overlay" className="mt-2" onClick={dismiss}>
+              <RotateCcw size={16} />
+              {t.next}
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
+
       {roster.length > 0 && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold">
+        <Card className="p-4">
+          <h2 className="mb-2 text-sm font-semibold text-[var(--ink)]">
             {t.expectedList} ({roster.filter((r) => r.arrived).length}/{roster.length})
           </h2>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-1.5 text-sm">
             {roster.map((r) => (
-              <li key={r.id} className={r.arrived ? "text-green-700" : "text-stone-700"}>
-                {r.arrived ? "✓" : "○"} {r.name}{!r.expected && " *"}
+              <li
+                key={r.id}
+                className={"flex items-center gap-2 " + (r.arrived ? "text-[var(--success)]" : "text-[var(--muted)]")}
+              >
+                {r.arrived ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                {r.name}
+                {!r.expected && <span className="text-[var(--warning)]">*</span>}
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );

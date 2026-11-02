@@ -1,4 +1,7 @@
 import { ImageResponse } from "next/og";
+import { BRAND_COLOR, clubInitials } from "@/lib/branding";
+
+export const dynamic = "force-dynamic";
 
 // Served at /icon-192 and referenced from the PWA manifest (home-screen install icon).
 export async function GET() {
@@ -11,14 +14,14 @@ export async function GET() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#15803d",
+          background: BRAND_COLOR,
           color: "white",
-          fontSize: 96,
+          fontSize: 88,
           fontWeight: 700,
           fontFamily: "sans-serif",
         }}
       >
-        TC
+        {clubInitials()}
       </div>
     ),
     { width: 192, height: 192 },

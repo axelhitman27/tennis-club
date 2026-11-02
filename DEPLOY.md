@@ -13,6 +13,17 @@
 
 Local dev: run a Postgres, set `.env`, then `npx prisma migrate dev` and `npm run dev`.
 
+## Deploying this for a different club
+
+Each club gets its own full deployment (own VPS or at least own domain, own database,
+fully isolated — not a shared multi-club database). It's the same code every time:
+
+1. Repeat steps 1–7 above with that club's domain and a fresh `.env`.
+2. Set `CLUB_NAME` and `CLUB_PRIMARY_COLOR` in that `.env` — every bit of branding (page
+   title, favicon, home-screen icon, email sender) comes from those two values, so no
+   code changes are needed per club.
+3. Set that club's own prices in **Admin → Τιμές & κανόνες** after the first login.
+
 ## Deploy from GitHub
 
 - The VPS pulls the code with a read-only **deploy key** (repo → Settings → Deploy keys).

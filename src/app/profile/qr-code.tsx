@@ -15,7 +15,11 @@ export function QrCode() {
         const res = await fetch("/api/qr", { cache: "no-store" });
         if (!res.ok) return;
         const { token, ttl } = await res.json();
-        const url = await QRCode.toDataURL(token, { width: 280, margin: 1 });
+        const url = await QRCode.toDataURL(token, {
+          width: 280,
+          margin: 1,
+          color: { dark: "#1c1917", light: "#ffffff" },
+        });
         if (cancelled) return;
         setSrc(url);
         timer = setTimeout(refresh, (ttl - 10) * 1000);
@@ -30,6 +34,14 @@ export function QrCode() {
     };
   }, []);
 
-  // eslint-disable-next-line @next/next/no-img-element
-  return src ? <img src={src} alt="QR" width={280} height={280} className="mx-auto" /> : <div className="mx-auto h-[280px] w-[280px] animate-pulse rounded bg-stone-200" />;
+  return (
+    <div className="mx-auto w-fit rounded-2xl border-2 border-[var(--brand-light)] bg-white p-3">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="QR" width={240} height={240} className="block" />
+      ) : (
+        <div className="h-[240px] w-[240px] animate-pulse rounded-lg bg-stone-100" />
+      )}
+    </div>
+  );
 }
