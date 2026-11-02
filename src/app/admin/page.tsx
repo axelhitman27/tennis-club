@@ -8,6 +8,7 @@ import { StaffNav } from "../staff-nav";
 import { ensureUpcomingSessions, WEEKDAYS, byWeekThenTime } from "@/lib/schedule";
 import { createSession, createSlot, deleteSlot, updateSettings, setRole } from "./actions";
 import { Card, CardHeader, PageHeader, StatTile, Field, Select, Button, Badge, Avatar, EmptyState } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
 
 const fmtDateTime = new Intl.DateTimeFormat("el-GR", { dateStyle: "short", timeStyle: "short" });
 const roleLabel = { PLAYER: "Παίκτης", COACH: "Προπονητής", ADMIN: "Διαχειριστής" } as const;
@@ -47,7 +48,7 @@ export default async function AdminPage() {
 
       <Card>
         <CardHeader title="Τιμές & κανόνες" subtitle="Ισχύει για νέες χρεώσεις." />
-        <form action={updateSettings} className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+        <ActionForm action={updateSettings} success="Οι ρυθμίσεις αποθηκεύτηκαν." className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
           <Field name="monthly" label="Μηνιαία συνδρομή (€)" defaultValue={(settings.monthlyCents / 100).toString()} />
           <Field name="guest" label="Χωρίς συνδρομή (€)" defaultValue={(settings.guestSessionCents / 100).toString()} />
           <Field name="weekly" label="Προπ. / εβδομάδα" type="number" min={1} max={7} defaultValue={settings.weeklyTrainings} />
@@ -57,12 +58,12 @@ export default async function AdminPage() {
               Άλλη τιμή/μήνα (π.χ. 35 € για 3 μήνες) ορίζεται στη σελίδα κάθε παίκτη.
             </p>
           </div>
-        </form>
+        </ActionForm>
       </Card>
 
       <Card>
         <CardHeader title="Εβδομαδιαίο πρόγραμμα" subtitle="Οι προπονήσεις δημιουργούνται αυτόματα για τις επόμενες 4 εβδομάδες." />
-        <form action={createSlot} className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
+        <ActionForm action={createSlot} success="Το πρόγραμμα προστέθηκε." className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
           <Field name="title" label="Τίτλος" defaultValue="Προπόνηση" />
           <Select name="weekday" label="Ημέρα" defaultValue="1">
             {[1, 2, 3, 4, 5, 6, 0].map((d) => (
@@ -77,7 +78,7 @@ export default async function AdminPage() {
               Προσθήκη
             </Button>
           </div>
-        </form>
+        </ActionForm>
         <div className="border-t border-[var(--border)]">
           {slots.length === 0 ? (
             <div className="p-5">
@@ -92,12 +93,12 @@ export default async function AdminPage() {
                     <span className="text-[var(--ink)]">{s.title}{s.location ? ` · ${s.location}` : ""}</span>
                     <span className="text-[var(--muted)]">· {s._count.players} παίκτες</span>
                   </div>
-                  <form action={deleteSlot}>
+                  <ActionForm action={deleteSlot} success="Το πρόγραμμα αφαιρέθηκε.">
                     <input type="hidden" name="slotId" value={s.id} />
                     <Button variant="ghost" size="sm" className="text-[var(--danger)]">
                       <Trash2 size={14} />
                     </Button>
-                  </form>
+                  </ActionForm>
                 </li>
               ))}
             </ul>
@@ -107,7 +108,7 @@ export default async function AdminPage() {
 
       <Card>
         <CardHeader title="Έκτακτη προπόνηση" />
-        <form action={createSession} className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+        <ActionForm action={createSession} success="Η προπόνηση προστέθηκε." className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
           <Field name="title" label="Τίτλος" />
           <Field name="startsAt" label="Ημ/νία & ώρα" type="datetime-local" />
           <Field name="location" label="Γήπεδο" required={false} />
@@ -117,7 +118,7 @@ export default async function AdminPage() {
               Προσθήκη
             </Button>
           </div>
-        </form>
+        </ActionForm>
         <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)] text-sm">
           {sessions.map((s) => (
             <li key={s.id} className="flex items-center justify-between p-4">
@@ -144,7 +145,7 @@ export default async function AdminPage() {
                 )}
                 <Badge tone="neutral">{roleLabel[u.role]}</Badge>
               </div>
-              <form action={setRole} className="flex items-center gap-2">
+              <ActionForm action={setRole} success="Ο ρόλος ενημερώθηκε." className="flex items-center gap-2">
                 <input type="hidden" name="userId" value={u.id} />
                 <select
                   name="role"
@@ -161,7 +162,7 @@ export default async function AdminPage() {
                     Αλλαγή
                   </Button>
                 )}
-              </form>
+              </ActionForm>
             </li>
           ))}
         </ul>

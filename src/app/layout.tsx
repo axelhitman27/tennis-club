@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CLUB_NAME, BRAND_COLOR } from "@/lib/branding";
+import { ToastProvider } from "@/components/toast";
 
 // Branding comes from env vars so a new club deployment needs only a different
 // .env, never a code change. That only works if this is read per-request rather
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* The whole app's accent color derives from this one variable (see globals.css). */}
         <style dangerouslySetInnerHTML={{ __html: `:root{--brand:${BRAND_COLOR}}` }} />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

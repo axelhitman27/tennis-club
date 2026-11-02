@@ -8,6 +8,7 @@ import { eur } from "@/lib/money";
 import { WEEKDAYS, byWeekThenTime } from "@/lib/schedule";
 import { getSettings } from "@/lib/settings";
 import { Card, CardHeader, Badge, Button, Field, Avatar, EmptyState } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
 import { StaffNav } from "../../../staff-nav";
 import { togglePaid } from "../../actions";
 import { createMembership } from "../../../admin/actions";
@@ -143,7 +144,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             })}
           </ul>
           {staff.role === "ADMIN" && (
-            <form action={createMembership} className="flex flex-wrap items-end gap-3">
+            <ActionForm action={createMembership} success="Η συνδρομή ενεργοποιήθηκε." className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="userId" value={player.id} />
               <div className="w-24">
                 <Field name="months" label="Μήνες" type="number" min={1} max={24} defaultValue="1" />
@@ -152,7 +153,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
                 <Field name="monthlyPrice" label="€ / μήνα" required={false} placeholder={String(settings.monthlyCents / 100)} />
               </div>
               <Button type="submit">Ενεργοποίηση</Button>
-            </form>
+            </ActionForm>
           )}
         </div>
       </Card>
